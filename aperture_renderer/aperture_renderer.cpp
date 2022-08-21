@@ -142,7 +142,7 @@ int main(int argc, char* argv[])
 
 	std::vector<float> out_raw(width * height);
 
-	//auto max = ap.diff_value(width / 2 - 4, height / 2 - 4);
+	auto max = ap.diff_value(width / 2 - 4, height / 2 - 4);
 
 	std::mutex m;
 
@@ -164,23 +164,31 @@ int main(int argc, char* argv[])
 
 				for (int x = 0; x < width; x++)
 				{
-					out_raw[y * width + x] = ap.diff_value(x, y);
+					out_raw[y * width + x] = ap.diff_value(x, y) / max;
 				}
 			}
 		});
 
+	//for (int y = 0; y < height; ++y)
+	//{
+	//	for (int x = 0; x < width; x++)
+	//	{
+	//		out_raw[y * width + x] = ap.diff_value(x, y);
+	//	}
+	//}
+
 	float max_value{ 0 };
 
-	for (int y = 0; y < height; ++y)
-	{
-		for (int x = 0; x < width; x++)
-		{
-			float v = out_raw[y * width + x];
-			max_value = v > max_value ? v : max_value;
-		}
-	}
+	//for (int y = 0; y < height; ++y)
+	//{
+	//	for (int x = 0; x < width; x++)
+	//	{
+	//		float v = out_raw[y * width + x];
+	//		max_value = v > max_value ? v : max_value;
+	//	}
+	//}
 
-	max_value *= 0.95;
+	//max_value *= 0.4;
 
 	std::vector<unsigned char> out(width * height * 4);
 
@@ -190,7 +198,8 @@ int main(int argc, char* argv[])
 		{
 			int i_offs = y * width + x;
 			int o_offs = 4 * i_offs;
-			unsigned int pv = (unsigned)(255.0 * out_raw[i_offs] / max_value);
+			unsigned int pv = (unsigned)(255 * out_raw[i_offs]);
+//			unsigned v = static_cast<unsigned>(255.0 * out_raw[i_offs] / max);
 			if (pv > 255)
 				pv = 255;
 			out[o_offs + 0] = pv;
