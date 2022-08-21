@@ -6,9 +6,13 @@
 
 #include <iostream>
 #include <vector>
+#include <array>
 
 #include "lodepng.h"
 #include "ThreadGrid.h"
+
+constexpr int NUM_COLORS = 9;
+constexpr float CLR_STEP = 1.05;
 
 constexpr float PI = 3.14159265359f;
 
@@ -25,6 +29,8 @@ struct lambda_profile
 		, velocity{ static_cast<float>(lambda / (2.0 * PI)) }
 	{
 	}
+
+	lambda_profile() : lambda_profile{ 0 } {}
 };
 
 struct aperture
@@ -80,10 +86,11 @@ struct aperture
 		}
 	}
 
-	float diff_value(const lambda_profile& lp, int x, int y)
+	template <size_t N>
+	void diff_value(const std::array<lambda_profile, N>& lp, int x, int y, std::array<float, N>& out)
 	{
-		float accum_a = 0;
-		float accum_b = 0;
+		std::array<float, N> accum_a { 0 };
+		std::array<float, N> accum_b { 0 };
 
 		for (int ay = 0; ay < height; ++ay)
 		{
@@ -99,14 +106,20 @@ struct aperture
 				auto l_sqr = std::pow(ax - x, 2.0) + std::pow(ay - y, 2.0) + std::pow(z - d, 2.0);
 
 				float ivq = (float)(GENERAL_MULTIPLIER /* * intensity*/ / l_sqr);
-				auto d_tv = std::sqrt(l_sqr) / lp.velocity;
 
-				accum_a += (float)(ivq * std::cos(d_tv));
-				accum_b += (float)(ivq * std::sin(d_tv));
+				for (int i = 0; i < N; ++i)
+				{
+					auto d_tv = std::sqrt(l_sqr) / lp[i].velocity;
+					accum_a[i] += (float)(ivq * std::cos(d_tv));
+					accum_b[i] += (float)(ivq * std::sin(d_tv));
+				}
 			}
 		}
 
-		return (float)(PI * (std::pow(accum_a, 2.0) + std::pow(accum_b, 2.0)));
+		for (int i = 0; i < N; ++i)
+		{
+			out[i] = (float)(PI * (std::pow(accum_a[i], 2.0) + std::pow(accum_b[i], 2.0)));
+		}
 	}
 };
 
@@ -177,17 +190,18 @@ int main(int argc, char* argv[])
 
 	aperture ap{ data, static_cast<int>(width), static_cast<int>(height), d, R };
 
-	std::vector<lambda_profile> lps;
-	std::vector<std::vector<float>> out_raw(9); //  width* height);
+	std::array<lambda_profile, NUM_COLORS> lps;
+	std::vector<std::array<float, NUM_COLORS>> out_raw(width* height);
 
-	for (int i = 0; i < 9; i++)
+	for (int i = 0; i < NUM_COLORS; i++)
 	{
-		lps.push_back(lambda_profile{ (std::powf(1.05f, 4 - i) * lambda) });
-		out_raw[i].resize(width * height);
+		lps[i] = lambda_profile{(std::powf(CLR_STEP, NUM_COLORS / 2 - i) * lambda)};
 	}
 
 	std::mutex m;
 	int progress = 0;
+
+	report_progress(0, height);
 
 	_grid.GridRun(
 		[&](int thread_idx, int num_threads)
@@ -196,20 +210,15 @@ int main(int argc, char* argv[])
 			int from = thread_idx * slice;
 			int to = std::min<int>(height, (thread_idx + 1) * slice);
 
-			for (int i = 0; i < 9; ++i)
+			for (int y = from; y < to; ++y)
 			{
-				const auto& lp = lps[i];
-				auto& dst = out_raw[i];
-
-				for (int y = from; y < to; ++y)
+				for (int x = 0; x < width; x++)
 				{
-					for (int x = 0; x < width; x++)
-					{
-						dst[y * width + x] = ap.diff_value(lp, x, y);
-					}
-					std::lock_guard l{ m };
-					report_progress(++progress, height * 9);
+					ap.diff_value(lps, x, y, out_raw[y * width + x]);
 				}
+
+				std::lock_guard l{ m };
+				report_progress(++progress, height);
 			}
 		});
 
@@ -220,8 +229,8 @@ int main(int argc, char* argv[])
 		for (int x = 0; x < width; x++)
 		{
 			float v = 0;
-			for (int i = 0; i < 9; ++i)
-				v += out_raw[i][y * width + x];
+			for (int i = 0; i < NUM_COLORS; ++i)
+				v += out_raw[y * width + x][i];
 			sum += v / 9.0;
 		}
 	}
@@ -237,9 +246,9 @@ int main(int argc, char* argv[])
 			int i_offs = y * width + x;
 			int o_offs = 4 * i_offs;
 
-			float r = 255.0f * (out_raw[0][i_offs] + out_raw[1][i_offs] + out_raw[2][i_offs]) / 3.0f / max;
-			float g = 255.0f * (out_raw[3][i_offs] + out_raw[4][i_offs] + out_raw[5][i_offs]) / 3.0f / max;
-			float b = 255.0f * (out_raw[6][i_offs] + out_raw[7][i_offs] + out_raw[8][i_offs]) / 3.0f / max;
+			float r = 255.0f * (out_raw[i_offs][0] + out_raw[i_offs][1] + out_raw[i_offs][2]) / 3.0f / max;
+			float g = 255.0f * (out_raw[i_offs][3] + out_raw[i_offs][4] + out_raw[i_offs][5]) / 3.0f / max;
+			float b = 255.0f * (out_raw[i_offs][6] + out_raw[i_offs][7] + out_raw[i_offs][8]) / 3.0f / max;
 
 			out[o_offs + 0] = std::min(255u, static_cast<unsigned>(r));
 			out[o_offs + 1] = std::min(255u, static_cast<unsigned>(g));
