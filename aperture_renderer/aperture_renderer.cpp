@@ -12,13 +12,13 @@
 
 constexpr float PI = 3.14159265359f;
 
-constexpr float GENERAL_MULTIPLIER = 1000.0;
-constexpr float BRIGHT_RATIO = 7000.0; // basically defines how much "light" we want to see in the final render
+constexpr float GENERAL_MULTIPLIER = 10000.0;
+constexpr float BRIGHT_RATIO = 90000.0; // basically defines how much "light" we want to see in the final render
 
 struct aperture
 {
 	// i = y * Width + x
-	std::vector<float> intensity_mask;
+	std::vector<bool> intensity_mask;
 	std::vector<float> z_values;
 
 	int width;
@@ -57,10 +57,9 @@ struct aperture
 				float g = img[img_offs + 1];
 				float b = img[img_offs + 2];
 
-				//float v = (r + g + b) / 3.0f / 255.0f;
-				float v = ((r > 127) ? 0.3333 : 0.0) + ((g > 127) ? 0.3333 : 0.0) + ((b > 127) ? 0.3334 : 0.0);
+				float v = (r + g + b) / 3.0f / 255.0f;
 
-				intensity_mask[y * width + x] = v;
+				intensity_mask[y * width + x] = v > 0.5f;
 				z_values[y * width + x] = 
 					-std::sqrt(
 							R * R - std::powf(x - cx, 2.0) - std::powf(y - cy, 2.0)
@@ -80,15 +79,14 @@ struct aperture
 			{
 				int offs = ay * width + ax;
 
-				float intensity = intensity_mask[offs];
-				if (intensity < 0.00001)
+				if (!intensity_mask[offs])
 					continue;
 
 				float z = z_values[offs];
 
 				auto l_sqr = std::pow(ax - x, 2.0) + std::pow(ay - y, 2.0) + std::pow(z - d, 2.0);
 
-				float ivq = (float)(GENERAL_MULTIPLIER * intensity / l_sqr);
+				float ivq = (float)(GENERAL_MULTIPLIER /* * intensity*/ / l_sqr);
 				auto d_tv = std::sqrt(l_sqr) / velocity;
 
 				accum_a += (float)(ivq * std::cos(d_tv));
@@ -99,6 +97,20 @@ struct aperture
 		return (float)(PI * (std::pow(accum_a, 2.0) + std::pow(accum_b, 2.0)));
 	}
 };
+
+void report_progress(int value, int total)
+{
+	std::cout << "progress: [";
+
+	for (int i = 0; i < 60; i++)
+	{
+		if (i * total < 60 * value)
+			std::cout << "=";
+		else
+			std::cout << "-";
+	}
+	std::cout << "]" << std::endl;
+}
 
 
 int main(int argc, char* argv[])
@@ -116,8 +128,14 @@ int main(int argc, char* argv[])
 
 	if (argc < 3)
 	{
-		std::cerr << "Wrong usage -- see src.. joking" << std::endl;
+		std::cerr << "Wrong usage, try:" << std::endl;
 		std::cerr << "aperture_renderer <input.png> <output.png> [<d>] [<R>] [<lambda>]" << std::endl;
+		std::cerr << "default values are: d = 200 (px), R = 1000 (px), lambda = 0.55" << std::endl;
+		std::cerr << "Note: lambda defines the wavelength for the mid-spectrum, rendering will be done using three values:" << std::endl;
+		std::cerr << "lambda_red = lambda * 1.2" << std::endl;
+		std::cerr << "lambda_green = lambda * 1.0" << std::endl;
+		std::cerr << "lambda_blue = lambda / 1.2" << std::endl;
+		std::cerr << "(go to the source code to change those multipliers)";
 		return -1;
 	}
 
@@ -126,7 +144,9 @@ int main(int argc, char* argv[])
 
 	float d = argc >= 4 ? std::atof(argv[3]) : 200.0;
 	float R = argc >= 5 ? std::atof(argv[4]) : 1000.0;
-	float lambda = argc >= 6 ? std::atof(argv[5]) : 0.5;
+	float lambda_g = argc >= 6 ? std::atof(argv[5]) : .55;
+	float lambda_r = lambda_g * 1.2f;
+	float lambda_b = lambda_r / 1.2f;
 
 	std::vector<unsigned char> data;
 	unsigned width;
@@ -139,33 +159,54 @@ int main(int argc, char* argv[])
 
 	ThreadGrid _grid{ numWorkerThreads };
 
-	aperture ap{ data, static_cast<int>(width), static_cast<int>(height), d, R, lambda};
+	aperture ap_r{ data, static_cast<int>(width), static_cast<int>(height), d, R, lambda_r };
+	aperture ap_g{ data, static_cast<int>(width), static_cast<int>(height), d, R, lambda_g };
+	aperture ap_b{ data, static_cast<int>(width), static_cast<int>(height), d, R, lambda_b };
 
-	std::vector<float> out_raw(width * height);
+	std::vector<float> out_raw_r(width * height);
+	std::vector<float> out_raw_g(width * height);
+	std::vector<float> out_raw_b(width * height);
 
 	std::mutex m;
+	int progress = 0;
 
 	_grid.GridRun(
 		[&](int thread_idx, int num_threads)
 		{
 			int slice = static_cast<int>(1.0 * height / num_threads + 0.999);
 			int from = thread_idx * slice;
-			int to = (thread_idx + 1) * slice;
-			if (to > height)
-				to = height;
+			int to = std::min<int>(height, (thread_idx + 1) * slice);
 
 			for (int y = from; y < to; ++y)
 			{
-				{
-					std::lock_guard l{ m };
-					std::cout << thread_idx << ": " << (y - from) << " of " << (to-from) << std::endl;
-				}
-
 				for (int x = 0; x < width; x++)
 				{
-					out_raw[y * width + x] = ap.diff_value(x, y) ;
+					out_raw_r[y * width + x] = ap_r.diff_value(x, y) ;
 				}
+				std::lock_guard l{ m };
+				report_progress(++progress, height * 3);
 			}
+
+			for (int y = from; y < to; ++y)
+			{
+				for (int x = 0; x < width; x++)
+				{
+					out_raw_g[y * width + x] = ap_g.diff_value(x, y);
+				}
+				std::lock_guard l{ m };
+				report_progress(++progress, height * 3);
+			}
+
+			for (int y = from; y < to; ++y)
+			{
+				for (int x = 0; x < width; x++)
+				{
+					out_raw_b[y * width + x] = ap_b.diff_value(x, y);
+				}
+				std::lock_guard l{ m };
+				report_progress(++progress, height * 3);
+			}
+
 		});
 
 	float sum{ 0 };
@@ -174,8 +215,8 @@ int main(int argc, char* argv[])
 	{
 		for (int x = 0; x < width; x++)
 		{
-			float v = out_raw[y * width + x];
-			sum += v;
+			float v = out_raw_r[y * width + x] + out_raw_g[y * width + x] + out_raw_b[y * width + x];
+			sum += v / 3.0;
 		}
 	}
 
@@ -189,10 +230,9 @@ int main(int argc, char* argv[])
 		{
 			int i_offs = y * width + x;
 			int o_offs = 4 * i_offs;
-			unsigned pv = std::min(255u, static_cast<unsigned>(255.0 * out_raw[i_offs] / max));
-			out[o_offs + 0] = pv;
-			out[o_offs + 1] = pv;
-			out[o_offs + 2] = pv;
+			out[o_offs + 0] = std::min(255u, static_cast<unsigned>(255.0 * out_raw_r[i_offs] / max));
+			out[o_offs + 1] = std::min(255u, static_cast<unsigned>(255.0 * out_raw_g[i_offs] / max));
+			out[o_offs + 2] = std::min(255u, static_cast<unsigned>(255.0 * out_raw_b[i_offs] / max));
 			out[o_offs + 3] = 255;
 		}
 	}
