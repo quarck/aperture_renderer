@@ -35,5 +35,8 @@
     <ClInclude Include="ThreadGrid.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="wavelength_to_rgb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

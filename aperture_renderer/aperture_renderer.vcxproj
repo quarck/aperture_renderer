@@ -139,6 +139,7 @@
     <ClInclude Include="lodepng.h" />
     <ClInclude Include="lodepng_util.h" />
     <ClInclude Include="ThreadGrid.h" />
+    <ClInclude Include="wavelength_to_rgb.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

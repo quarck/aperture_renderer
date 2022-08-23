@@ -11,8 +11,10 @@
 #include "lodepng.h"
 #include "ThreadGrid.h"
 
-constexpr int NUM_COLORS = 9;
-constexpr float CLR_STEP = 1.05;
+#include "wavelength_to_rgb.h"
+
+constexpr int NUM_COLORS = 16;
+constexpr float CLR_STEP = 1.0230519;
 
 constexpr float PI = 3.14159265359f;
 
@@ -31,6 +33,7 @@ struct lambda_profile
 	}
 
 	lambda_profile() : lambda_profile{ 0 } {}
+
 };
 
 struct aperture
@@ -191,11 +194,24 @@ int main(int argc, char* argv[])
 	aperture ap{ data, static_cast<int>(width), static_cast<int>(height), d, R };
 
 	std::array<lambda_profile, NUM_COLORS> lps;
+	std::array<std::tuple<float, float, float>, NUM_COLORS> wavelenghts_as_rgb;
 	std::vector<std::array<float, NUM_COLORS>> out_raw(width* height);
+
+	float wl_max = std::numeric_limits<float>::min();
+	float wl_min = std::numeric_limits<float>::max();
 
 	for (int i = 0; i < NUM_COLORS; i++)
 	{
-		lps[i] = lambda_profile{(std::powf(CLR_STEP, NUM_COLORS / 2 - i) * lambda)};
+		float wl = std::powf(CLR_STEP, NUM_COLORS / 2 - i) * lambda;
+		wl_max = std::max(wl_max, wl);
+		wl_min = std::min(wl_min, wl);
+
+		lps[i] = lambda_profile{ wl };
+	}
+
+	for (int i = 0; i < NUM_COLORS; i++)
+	{
+		wavelenghts_as_rgb[i] = wavelength_to_rgb(lps[i].lambda, wl_min, wl_max);
 	}
 
 	std::mutex m;
@@ -231,7 +247,7 @@ int main(int argc, char* argv[])
 			float v = 0;
 			for (int i = 0; i < NUM_COLORS; ++i)
 				v += out_raw[y * width + x][i];
-			sum += v / 9.0;
+			sum += v / NUM_COLORS;
 		}
 	}
 
@@ -246,13 +262,23 @@ int main(int argc, char* argv[])
 			int i_offs = y * width + x;
 			int o_offs = 4 * i_offs;
 
-			float r = 255.0f * (out_raw[i_offs][0] + out_raw[i_offs][1] + out_raw[i_offs][2]) / 3.0f / max;
-			float g = 255.0f * (out_raw[i_offs][3] + out_raw[i_offs][4] + out_raw[i_offs][5]) / 3.0f / max;
-			float b = 255.0f * (out_raw[i_offs][6] + out_raw[i_offs][7] + out_raw[i_offs][8]) / 3.0f / max;
+			float r = 0;
+			float g = 0;
+			float b = 0;
 
-			out[o_offs + 0] = std::min(255u, static_cast<unsigned>(r));
-			out[o_offs + 1] = std::min(255u, static_cast<unsigned>(g));
-			out[o_offs + 2] = std::min(255u, static_cast<unsigned>(b));
+			for (int i = 0; i < NUM_COLORS; ++i)
+			{
+				float v = out_raw[i_offs][i] / max; // value for the given WL
+				auto rgb = wavelenghts_as_rgb[i]; // RGB components for the given WL
+
+				r += v * std::get<0>(rgb);
+				g += v * std::get<1>(rgb);
+				b += v * std::get<2>(rgb);
+			}
+
+			out[o_offs + 0] = std::min(255u, static_cast<unsigned>(r * 255.0f / 3.0f));
+			out[o_offs + 1] = std::min(255u, static_cast<unsigned>(g * 255.0f / 3.0f));
+			out[o_offs + 2] = std::min(255u, static_cast<unsigned>(b * 255.0f / 3.0f));
 			out[o_offs + 3] = 255;
 		}
 	}
