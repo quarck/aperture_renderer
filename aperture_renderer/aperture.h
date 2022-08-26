@@ -54,6 +54,9 @@ struct aperture
 		intensity_mask.resize(width* height);
 		z_values.resize(width* height);
 
+		// 0.5 factor is subtracted, as the centre is supposedly in between the middle two pixels, 
+		// so for more accurate calculations (and to enable symmetry-based optimisations), we
+		// subtract that 
 		float cx = width / 2.0f - 0.5f;
 		float cy = height / 2.0f - 0.5f;
 
