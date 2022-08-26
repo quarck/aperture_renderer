@@ -38,5 +38,8 @@
     <ClInclude Include="wavelength_to_rgb.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="aperture.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

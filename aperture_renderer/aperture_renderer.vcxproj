@@ -136,6 +136,7 @@
     <ClCompile Include="lodepng_util.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="aperture.h" />
     <ClInclude Include="lodepng.h" />
     <ClInclude Include="lodepng_util.h" />
     <ClInclude Include="ThreadGrid.h" />
