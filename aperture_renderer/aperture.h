@@ -123,15 +123,15 @@ struct aperture
 				assert(z_values[offs_my] == z);
 				assert(z_values[offs_mx_my] == z);
 
-				auto l_sqr = std::pow(ax - x, 2.0) + std::pow(ay - y, 2.0) + std::pow(z - d, 2.0);
+				float l_sqr = std::powf(ax - x, 2.0) + std::powf(ay - y, 2.0) + std::powf(z - d, 2.0);
 
-				float ivq = (float)(GENERAL_MULTIPLIER / l_sqr);
+				float ivq = GENERAL_MULTIPLIER / l_sqr;
 
 				for (int i = 0; i < N; ++i)
 				{
-					auto d_tv = std::sqrt(l_sqr) * lambda_profiles[i].inverse_velocity;
-					float c = (float)(ivq * std::cosf(d_tv));
-					float s = (float)(ivq * std::sinf(d_tv));
+					float d_tv = std::sqrtf(l_sqr) * lambda_profiles[i].inverse_velocity;
+					float c = ivq * std::cosf(d_tv);
+					float s = ivq * std::sinf(d_tv);
 
 					accum_a[i] += c * intensity;
 					accum_b[i] += s * intensity;
