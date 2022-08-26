@@ -147,10 +147,10 @@ struct aperture
 
 		for (int i = 0; i < N; ++i)
 		{
-			out[i] = (float)(PI * (std::pow(accum_a[i], 2.0) + std::pow(accum_b[i], 2.0)));
-			out_mx[i] = (float)(PI * (std::pow(accum_a_mx[i], 2.0) + std::pow(accum_b_mx[i], 2.0)));
-			out_my[i] = (float)(PI * (std::pow(accum_a_my[i], 2.0) + std::pow(accum_b_my[i], 2.0)));
-			out_mx_my[i] = (float)(PI * (std::pow(accum_a_mx_my[i], 2.0) + std::pow(accum_b_mx_my[i], 2.0)));
+			out[i] = PI * (std::powf(accum_a[i], 2.0) + std::powf(accum_b[i], 2.0));
+			out_mx[i] = PI * (std::powf(accum_a_mx[i], 2.0) + std::powf(accum_b_mx[i], 2.0));
+			out_my[i] = PI * (std::powf(accum_a_my[i], 2.0) + std::powf(accum_b_my[i], 2.0));
+			out_mx_my[i] = PI * (std::powf(accum_a_mx_my[i], 2.0) + std::powf(accum_b_mx_my[i], 2.0));
 		}
 	}
 };
