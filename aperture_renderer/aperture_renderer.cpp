@@ -130,8 +130,8 @@ int main(int argc, char* argv[])
 				for (int x = 0; x < width/2; x++)
 				{
 					ap.diff_value(x, y, out_raw[y * width + x], 
-						out_raw[y * width + width - x -1], 
-						out_raw[(height - y -1) * width + x],
+						out_raw[y * width + width - x - 1], 
+						out_raw[(height - y - 1) * width + x],
 						out_raw[(height - y - 1) * width + width - x - 1]
 						);
 				}
