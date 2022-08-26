@@ -11,11 +11,13 @@ struct lambda_profile
 {
 	float lambda; // wavelength 
 	float velocity; // wave velocity through the medium
+	float inverse_velocity;
 	//float omega; // we set such a value of v, so omega == 1.0 all the time. All we care is the wavelenght 
 
 	lambda_profile(float lambda)
 		: lambda{ lambda }
-		, velocity{ static_cast<float>(lambda / (2.0 * PI)) }
+		, velocity{  }
+		, inverse_velocity{ static_cast<float>((2.0 * PI) / lambda ) }
 	{
 	}
 
@@ -127,7 +129,7 @@ struct aperture
 
 				for (int i = 0; i < N; ++i)
 				{
-					auto d_tv = std::sqrt(l_sqr) / lambda_profiles[i].velocity;
+					auto d_tv = std::sqrt(l_sqr) * lambda_profiles[i].inverse_velocity;
 					float c = (float)(ivq * std::cosf(d_tv));
 					float s = (float)(ivq * std::sinf(d_tv));
 
