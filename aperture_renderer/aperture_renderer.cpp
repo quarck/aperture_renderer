@@ -259,7 +259,7 @@ int main(int argc, char* argv[])
 
 	for (int i = 0; i < NUM_COLORS; i++)
 	{
-		wavelenghts_as_rgb[i] = wavelength_to_rgb(ap.lambda_profiles[i].lambda, wl_min, wl_max);
+		wavelenghts_as_rgb[i] = wavelength_to_rgb(ap.lambda_profiles[i].lambda, wl_min * 1.04, wl_max / 1.03);
 	}
 
 	std::mutex m;
