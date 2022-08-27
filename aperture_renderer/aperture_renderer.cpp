@@ -40,8 +40,8 @@ void report_progress(int value, int total)
 
 int main(int argc, char* argv[])
 {
-	//_MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
-	//_MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+	_MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+	_MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
 
 #ifdef _DEBUG
 	int numWorkerThreads = 1;
@@ -148,21 +148,7 @@ int main(int argc, char* argv[])
 	std::cout << std::endl;
 	std::cout << "run duration: " << std::chrono::system_clock::to_time_t(end) - std::chrono::system_clock::to_time_t(start) << " seconds" << std::endl;
 
-
-	float sum{ 0 };
-
-	for (int y = 0; y < height; ++y)
-	{
-		for (int x = 0; x < width; x++)
-		{
-			float v = 0;
-			for (int i = 0; i < NUM_COLORS; ++i)
-				v += out_raw[y * width + x][i];
-			sum += v / NUM_COLORS;
-		}
-	}
-
-	float max{ sum / BRIGHT_RATIO }; 
+	float max{ 128.0f * ap.total_light_per_pixel };
 
 	std::vector<unsigned char> out(width * height * 4);
 
@@ -187,9 +173,9 @@ int main(int argc, char* argv[])
 				b += v * std::get<2>(rgb);
 			}
 
-			out[o_offs + 0] = std::min(255u, static_cast<unsigned>(r * 255.0f / 3.0f));
-			out[o_offs + 1] = std::min(255u, static_cast<unsigned>(g * 255.0f / 3.0f));
-			out[o_offs + 2] = std::min(255u, static_cast<unsigned>(b * 255.0f / 3.0f));
+			out[o_offs + 0] = std::min(255u, static_cast<unsigned>(r * 255.0f));
+			out[o_offs + 1] = std::min(255u, static_cast<unsigned>(g * 255.0f));
+			out[o_offs + 2] = std::min(255u, static_cast<unsigned>(b * 255.0f));
 			out[o_offs + 3] = 255;
 		}
 	}

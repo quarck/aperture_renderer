@@ -36,6 +36,8 @@ struct aperture
 	int width;
 	int height;
 
+	float total_light_per_pixel;
+
 
 	// R is the radius of the 'lense', with the centre at (Width/2.0 - 0.5, Height/2.0 - 0.5, 0), 
 	// it affects the curvature of the light wavefront. 
@@ -45,6 +47,7 @@ struct aperture
 		int width, int height, float R, float lambda, float clr_step)
 		: width{ width }
 		, height{ height }
+		, total_light_per_pixel { 0.0 }
 	{
 		intensity_mask.resize(width* height);
 		z_sqr_values.resize(width* height);
@@ -76,6 +79,8 @@ struct aperture
 				{
 					intensity_mask[dst_offs] = 0.0;
 				}
+
+				total_light_per_pixel += intensity_mask[dst_offs];
 			}
 		}
 
