@@ -32,7 +32,7 @@ struct aperture
 
 	// i = y * Width + x
 	std::vector<float> intensity_mask;
-	std::vector<float> z_values; // z-coordinates of the light emiting plane
+	std::vector<float> z_sqr_values; // z^2-coordinates of the light emiting plane
 
 	std::array<lambda_profile, N> lambda_profiles;
 
@@ -40,19 +40,17 @@ struct aperture
 	int height;
 
 
-	float d; // distance between z==0 and the 'screen'
-
-	// R is the radius of the 'lense', with the centre at (Width/2.0, Height/2.0, R), it affects the 
-	// curvature of 'z_values'
+	// R is the radius of the 'lense', with the centre at (Width/2.0 - 0.5, Height/2.0 - 0.5, 0), 
+	// it affects the curvature of the light wavefront. 
+	// The screen is the plane with z==0. 
 
 	aperture(std::vector<unsigned char> img,
-		int width, int height, float d, float R, float lambda)
+		int width, int height, float R, float lambda)
 		: width{ width }
 		, height{ height }
-		, d{ d }
 	{
 		intensity_mask.resize(width* height);
-		z_values.resize(width* height);
+		z_sqr_values.resize(width* height);
 
 		// 0.5 factor is subtracted, as the centre is supposedly in between the middle two pixels, 
 		// so for more accurate calculations (and to enable symmetry-based optimisations), we
@@ -74,8 +72,7 @@ struct aperture
 				float v = (r + g + b) / 3.0f / 255.0f;
 
 				intensity_mask[y * width + x] = v > 0.5f ? 1.0 : 0.0;
-				z_values[y * width + x] =
-					d - std::sqrt(R * R - std::powf(x - cx, 2.0) - std::powf(y - cy, 2.0));
+				z_sqr_values[y * width + x] = R * R - std::powf(x - cx, 2.0) - std::powf(y - cy, 2.0);
 			}
 		}
 
@@ -120,15 +117,15 @@ struct aperture
 				if (intensity == 0 && intensity_mx == 0 && intensity_my == 0 && intensity_mx_my == 0)
 					continue;
 
-				float z = z_values[offs];
+				float z_sqr = z_sqr_values[offs];
 
-				assert(z_values[offs_mx] == z);
-				assert(z_values[offs_my] == z);
-				assert(z_values[offs_mx_my] == z);
+				assert(z_sqr_values[offs_mx] == z_sqr);
+				assert(z_sqr_values[offs_my] == z_sqr);
+				assert(z_sqr_values[offs_mx_my] == z_sqr);
 
-				float l_sqr = std::powf(ax - x, 2.0) + std::powf(ay - y, 2.0) + std::powf(z - d, 2.0);
+				float l_sqr = std::powf(ax - x, 2.0) + std::powf(ay - y, 2.0) + z_sqr;
 
-				float ivq = GENERAL_MULTIPLIER / l_sqr;
+				const float ivq = GENERAL_MULTIPLIER / l_sqr;
 
 				for (int i = 0; i < N; ++i)
 				{

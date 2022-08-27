@@ -17,7 +17,6 @@
 
 constexpr int NUM_COLORS = 16;
 constexpr float CLR_STEP = 1.0114602809799 * 1.0114602809799;
-constexpr float DEFAULT_D = 200.0;
 constexpr float DEFAULT_R = 1000.0;
 constexpr float DEFAULT_LAMBDA = 0.75; // wavelength! not a functional prog lambda
 
@@ -55,8 +54,8 @@ int main(int argc, char* argv[])
 	if (argc < 3)
 	{
 		std::cerr << "Wrong usage, try:" << std::endl;
-		std::cerr << "aperture_renderer <input.png> <output.png> [<d>] [<R>] [<lambda>]" << std::endl;
-		std::cerr << "default values are: d = " << DEFAULT_D << " (px), R = " << DEFAULT_R << " (px), lambda = " << DEFAULT_LAMBDA << std::endl;
+		std::cerr << "aperture_renderer <input.png> <output.png> [<R>] [<lambda>]" << std::endl;
+		std::cerr << "default values are: R = " << DEFAULT_R << " (px), lambda = " << DEFAULT_LAMBDA << std::endl;
 		std::cerr << "Note: lambda defines the wavelength for the mid-spectrum only, the remdering will be done using " 
 			<< NUM_COLORS << " different wavelengths, where i-ths wavelenght is calculated as: " << std::endl;
 		std::cerr << "lambdas[i] = pow(" << CLR_STEP << ", " << (NUM_COLORS / 2) << " - i) * lambda " << std::endl;
@@ -72,9 +71,8 @@ int main(int argc, char* argv[])
 	std::cout << "Input: " << input << std::endl;
 	std::cout << "Output: " << output << std::endl;
 
-	float d = argc >= 4 ? std::atof(argv[3]) : DEFAULT_D;
-	float R = argc >= 5 ? std::atof(argv[4]) : DEFAULT_R;
-	float lambda = argc >= 6 ? std::atof(argv[5]) : DEFAULT_LAMBDA;
+	float R = argc >= 4 ? std::atof(argv[3]) : DEFAULT_R;
+	float lambda = argc >= 5 ? std::atof(argv[4]) : DEFAULT_LAMBDA;
 
 	std::vector<unsigned char> data;
 	unsigned width;
@@ -92,7 +90,7 @@ int main(int argc, char* argv[])
 
 	ThreadGrid _grid{ numWorkerThreads };
 
-	aperture<NUM_COLORS, CLR_STEP> ap{ data, static_cast<int>(width), static_cast<int>(height), d, R, lambda };
+	aperture<NUM_COLORS, CLR_STEP> ap{ data, static_cast<int>(width), static_cast<int>(height), R, lambda };
 
 	std::array<std::tuple<float, float, float>, NUM_COLORS> wavelenghts_as_rgb;
 
@@ -106,10 +104,17 @@ int main(int argc, char* argv[])
 		wl_max = std::max(wl_max, ap.lambda_profiles[i].lambda);
 		wl_min = std::min(wl_min, ap.lambda_profiles[i].lambda);
 	}
+	
+	std::cout << "Input image size: " << width << "x" << height << std::endl;
+	std::cout << "R: " << R << ", lambda mid: " << lambda << std::endl;
 
+	std::cout << "Spectrum: " << std::endl;
 	for (int i = 0; i < NUM_COLORS; i++)
 	{
-		wavelenghts_as_rgb[i] = wavelength_to_rgb(ap.lambda_profiles[i].lambda, wl_min, wl_max);
+		float wl = ap.lambda_profiles[i].lambda;
+		auto rgb = wavelength_to_rgb(wl , wl_min, wl_max);
+		wavelenghts_as_rgb[i] = rgb;
+		std::cout << "lambda[" << i << "] = " << wl << ", maps to RGB(" << std::get<0>(rgb) << ", " << std::get<1>(rgb) << ", " << std::get<2>(rgb) << ")" << std::endl;
 	}
 
 	std::atomic_int progress = 0;
