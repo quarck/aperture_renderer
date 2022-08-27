@@ -131,7 +131,7 @@ struct aperture
 
 				float l_sqr = std::powf(ax - x, 2.0) + std::powf(ay - y, 2.0) + z_sqr;
 
-				const float ivq = GENERAL_MULTIPLIER / l_sqr;
+				const float ivq = GENERAL_MULTIPLIER / l_sqr; // this factor has almost zero impact on the performance, but kind of brings simulation to the 'exact match' 
 
 				for (int i = 0; i < N; ++i)
 				{
