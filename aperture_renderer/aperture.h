@@ -64,6 +64,7 @@ struct aperture
 			for (int x = 0; x < width; x++)
 			{
 				auto img_offs = 4 * (y * width + x);
+				auto dst_offs = y * width + x;
 
 				float r = img[img_offs];
 				float g = img[img_offs + 1];
@@ -71,8 +72,13 @@ struct aperture
 
 				float v = (r + g + b) / 3.0f / 255.0f;
 
-				intensity_mask[y * width + x] = v > 0.5f ? 1.0 : 0.0;
-				z_sqr_values[y * width + x] = R * R - std::powf(x - cx, 2.0) - std::powf(y - cy, 2.0);
+				intensity_mask[dst_offs] = v > 0.5f ? 1.0 : 0.0;
+				z_sqr_values[dst_offs] = R * R - std::powf(x - cx, 2.0) - std::powf(y - cy, 2.0);
+
+				if (z_sqr_values[dst_offs] < 0)
+				{
+					intensity_mask[dst_offs] = 0.0;
+				}
 			}
 		}
 
