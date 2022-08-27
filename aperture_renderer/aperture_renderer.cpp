@@ -18,7 +18,7 @@
 constexpr int NUM_COLORS = 16;
 constexpr float CLR_STEP = 1.0114602809799 * 1.0114602809799;
 constexpr float DEFAULT_R = 1000.0;
-constexpr float DEFAULT_LAMBDA = 0.75; // wavelength! not a functional prog lambda
+constexpr float DEFAULT_LAMBDA = 0.55; // wavelength! not a functional prog lambda
 
 constexpr float BRIGHT_RATIO = 90000.0; // basically defines how much "light" we want to see in the final render
 
@@ -126,11 +126,7 @@ int main(int argc, char* argv[])
 	_grid.GridRun(
 		[&](int thread_idx, int num_threads)
 		{
-			int slice = static_cast<int>(1.0 * height/2 / num_threads + 0.999);
-			int from = thread_idx * slice;
-			int to = std::min<int>(height/2, (thread_idx + 1) * slice);
-
-			for (int y = from; y < to; ++y)
+			for (int y = thread_idx; y < height/2; y += num_threads)
 			{
 				for (int x = 0; x < width/2; x++)
 				{
