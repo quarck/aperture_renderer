@@ -90,7 +90,7 @@ int main(int argc, char* argv[])
 
 	ThreadGrid _grid{ numWorkerThreads };
 
-	aperture<NUM_COLORS, CLR_STEP> ap{ data, static_cast<int>(width), static_cast<int>(height), R, lambda };
+	aperture<NUM_COLORS> ap{ data, static_cast<int>(width), static_cast<int>(height), R, lambda, CLR_STEP };
 
 	std::array<std::tuple<float, float, float>, NUM_COLORS> wavelenghts_as_rgb;
 

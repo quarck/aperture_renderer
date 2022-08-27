@@ -4,9 +4,6 @@
 
 constexpr float PI = 3.14159265359f;
 
-constexpr float GENERAL_MULTIPLIER = 10000.0;
-
-
 struct lambda_profile
 {
 	float lambda; // wavelength 
@@ -25,7 +22,7 @@ struct lambda_profile
 
 };
 
-template <size_t N, float C_STEP>
+template <size_t N>
 struct aperture
 {
 	using pixel = std::array<float, N>;
@@ -45,7 +42,7 @@ struct aperture
 	// The screen is the plane with z==0. 
 
 	aperture(std::vector<unsigned char> img,
-		int width, int height, float R, float lambda)
+		int width, int height, float R, float lambda, float clr_step)
 		: width{ width }
 		, height{ height }
 	{
@@ -84,7 +81,7 @@ struct aperture
 
 		for (int i = 0; i < N; i++)
 		{
-			float wl = std::powf(C_STEP, static_cast<int>(N) / 2 - i) * lambda;
+			float wl = std::powf(clr_step, static_cast<int>(N) / 2 - i) * lambda;
 			lambda_profiles[i] = lambda_profile{ wl };
 		}
 	}
@@ -130,14 +127,23 @@ struct aperture
 				assert(z_sqr_values[offs_mx_my] == z_sqr);
 
 				float l_sqr = std::powf(ax - x, 2.0) + std::powf(ay - y, 2.0) + z_sqr;
+				float l = std::sqrtf(l_sqr);
+				// Note: generally speaking/ the factor "1.0 / L^2" should be applied to the amplitude of the 
+				// wave at distance L from the light point source, this way we can compute physically-correct 
+				// distribution of the amplitudes. 
+				// However, since the very purpose of this app is to draw the shape of the aperture of the tiny 
+				// projection of the point light source at the infinite distance, and assuming that the "aperture" is physically 
+				// much large than the projection display, we can conclude that the difference between max(1/L^2) and min(1/L^2) 
+				// is mostly negledgible. Furthermore, the longer the focus distance the more negledgible it becomes, so we 
+				// define it as a const simply. 
 
-				const float ivq = GENERAL_MULTIPLIER / l_sqr; // this factor has almost zero impact on the performance, but kind of brings simulation to the 'exact match' 
+				constexpr float inv_l_sqr = 1.0; // 1.0 / l_sqr; // this factor has almost zero impact on the performance, but kind of brings simulation to the 'exact match' 
 
 				for (int i = 0; i < N; ++i)
 				{
-					float d_tv = std::sqrtf(l_sqr) * lambda_profiles[i].inverse_velocity;
-					float c = ivq * std::cosf(d_tv);
-					float s = ivq * std::sinf(d_tv);
+					float d_tv = l * lambda_profiles[i].inverse_velocity;
+					float c = inv_l_sqr * std::cosf(d_tv);
+					float s = inv_l_sqr * std::sinf(d_tv);
 
 					accum_a[i] += c * intensity;
 					accum_b[i] += s * intensity;
