@@ -3,22 +3,22 @@
 $exe = "x64\Release\aperture_renderer.exe"
 $apertures = (gci sample_apertures)
 
-$wavelengths = (0.35, 0.55, 0.75, 1.05)
-
-$d = 200
 $R = 1000
+$wl = 0.75
 
 foreach ($ap in $apertures)
 {
-	foreach ($wv in $wavelengths)
-	{
-		$n = ([string]$wv) -replace '\.',''		
-		$out_file = $ap -replace '\.png', ("-"+$n+".png")
+	$out_file = "sample_results\" + $ap.Name 
+
+    if (Test-Path $out_file)
+    {
+        Write-Host "Skipping" $ap.Name 
+        continue
+    }
 		
-		Write-Host "Runniing $ap for $wv nm"
+	Write-Host "Runniing $ap"
 		
-		& $exe sample_apertures\$ap out\$out_file $d $R $wv		
+	& $exe sample_apertures\$ap out\$out_file $R $wv
 		
-		Write-Host "Done Runniing $ap for $wv nm"
-	}
+	Write-Host "Done $ap"
 }
