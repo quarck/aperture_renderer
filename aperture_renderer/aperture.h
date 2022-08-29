@@ -2,25 +2,10 @@
 #include <vector>
 #include <array>
 
-constexpr float PI = 3.14159265359f;
+#define _USE_MATH_DEFINES // for C++
+#include <cmath>
 
-struct lambda_profile
-{
-	float lambda; // wavelength 
-	float velocity; // wave velocity through the medium
-	float inverse_velocity;
-	//float omega; // we set such a value of v, so omega == 1.0 all the time. All we care is the wavelenght 
-
-	lambda_profile(float lambda)
-		: lambda{ lambda }
-		, velocity{  }
-		, inverse_velocity{ static_cast<float>((2.0 * PI) / lambda ) }
-	{
-	}
-
-	lambda_profile() : lambda_profile{ 0 } {}
-
-};
+#include "lambda_profile.h"
 
 template <size_t N>
 struct aperture
@@ -164,10 +149,10 @@ struct aperture
 
 		for (int i = 0; i < N; ++i)
 		{
-			out[i] = PI * (std::powf(accum_a[i], 2.0) + std::powf(accum_b[i], 2.0));
-			out_mx[i] = PI * (std::powf(accum_a_mx[i], 2.0) + std::powf(accum_b_mx[i], 2.0));
-			out_my[i] = PI * (std::powf(accum_a_my[i], 2.0) + std::powf(accum_b_my[i], 2.0));
-			out_mx_my[i] = PI * (std::powf(accum_a_mx_my[i], 2.0) + std::powf(accum_b_mx_my[i], 2.0));
+			out[i] = M_PI * (std::powf(accum_a[i], 2.0) + std::powf(accum_b[i], 2.0));
+			out_mx[i] = M_PI * (std::powf(accum_a_mx[i], 2.0) + std::powf(accum_b_mx[i], 2.0));
+			out_my[i] = M_PI * (std::powf(accum_a_my[i], 2.0) + std::powf(accum_b_my[i], 2.0));
+			out_mx_my[i] = M_PI * (std::powf(accum_a_mx_my[i], 2.0) + std::powf(accum_b_mx_my[i], 2.0));
 		}
 	}
 };
