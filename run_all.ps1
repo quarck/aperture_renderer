@@ -18,7 +18,7 @@ foreach ($ap in $apertures)
 		
 	Write-Host "Runniing $ap"
 		
-	& $exe sample_apertures\$ap out\$out_file $R $wv
+	& $exe sample_apertures\$ap $out_file $R $wv
 		
 	Write-Host "Done $ap"
 }

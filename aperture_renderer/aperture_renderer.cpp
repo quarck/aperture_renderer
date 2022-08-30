@@ -16,9 +16,9 @@
 
 
 constexpr int NUM_COLORS = 16;
-constexpr float CLR_STEP = 1.0114602809799 * 1.0114602809799;
+constexpr float CLR_STEP = 1.04427378242741;
 constexpr float DEFAULT_R = 1000.0;
-constexpr float DEFAULT_LAMBDA = 0.55; // wavelength! not a functional prog lambda
+constexpr float DEFAULT_LAMBDA = 0.75; // wavelength! not a functional prog lambda
 
 constexpr float BRIGHT_RATIO = 90000.0; // basically defines how much "light" we want to see in the final render
 
