@@ -23,16 +23,19 @@ struct aperture
 
 	float total_light_per_pixel;
 
+	float unfocus_factor;
+
 
 	// R is the radius of the 'lense', with the centre at (Width/2.0 - 0.5, Height/2.0 - 0.5, 0), 
 	// it affects the curvature of the light wavefront. 
 	// The screen is the plane with z==0. 
 
 	aperture(std::vector<unsigned char> img,
-		int width, int height, float R, float lambda, float clr_step)
+		int width, int height, float R, float lambda, float clr_step, float unfocus_factor)
 		: width{ width }
 		, height{ height }
 		, total_light_per_pixel { 0.0 }
+		, unfocus_factor{ unfocus_factor  }
 	{
 		intensity_mask.resize(width* height);
 		z_sqr_values.resize(width* height);
@@ -59,6 +62,11 @@ struct aperture
 
 				intensity_mask[dst_offs] = v > 0.5f ? 1.0 : 0.0;
 				z_sqr_values[dst_offs] = R * R - std::powf(x - cx, 2.0) - std::powf(y - cy, 2.0);
+				if (std::abs(unfocus_factor) > 0.0001)
+				{
+					float z = std::sqrt(z_sqr_values[dst_offs]) + unfocus_factor;
+					z_sqr_values[dst_offs] = z * z;
+				}
 
 				if (z_sqr_values[dst_offs] < 0)
 				{

@@ -54,14 +54,17 @@ int main(int argc, char* argv[])
 	if (argc < 3)
 	{
 		std::cerr << "Wrong usage, try:" << std::endl;
-		std::cerr << "aperture_renderer <input.png> <output.png> [<R>] [<lambda>]" << std::endl;
+		std::cerr << "aperture_renderer <input.png> <output.png> [<R>] [<lambda>] [<unfocus_factor>]" << std::endl;
 		std::cerr << "default values are: R = " << DEFAULT_R << " (px), lambda = " << DEFAULT_LAMBDA << std::endl;
+		std::cerr << "Unfocus factor is the distance where to put the virtual sensor in relationship to the ideal focal distance" 
+			<< " - negative values - closer, positive - further, unit is the same as lambda - px" << std::endl;
 		std::cerr << "Note: lambda defines the wavelength for the mid-spectrum only, the remdering will be done using " 
 			<< NUM_COLORS << " different wavelengths, where i-ths wavelenght is calculated as: " << std::endl;
 		std::cerr << "lambdas[i] = pow(" << CLR_STEP << ", " << (NUM_COLORS / 2) << " - i) * lambda " << std::endl;
 		std::cerr << "(go to the source code to change those multipliers and consts)" << std::endl;
 		std::cerr << "The resulting spectrum will be visualized as a visible light by mapping to visible light spectrum" << std::endl;
-		std::cerr << "The distance units used a completely arbitrary, they are in pixes of the orignal image, and thus wavelengths are defined in the same units" << std::endl;
+		std::cerr << "The distance units used a completely arbitrary, they are in pixes of the orignal image," 
+			<< " and thus wavelengths are defined in the same units" << std::endl;
 		return -1;
 	}
 
@@ -73,6 +76,7 @@ int main(int argc, char* argv[])
 
 	float R = argc >= 4 ? std::atof(argv[3]) : DEFAULT_R;
 	float lambda = argc >= 5 ? std::atof(argv[4]) : DEFAULT_LAMBDA;
+	float unfocus_factor = argc >= 6 ? std::atof(argv[5]) : 0.0;
 
 	std::vector<unsigned char> data;
 	unsigned width;
@@ -90,7 +94,7 @@ int main(int argc, char* argv[])
 
 	ThreadGrid _grid{ numWorkerThreads };
 
-	aperture<NUM_COLORS> ap{ data, static_cast<int>(width), static_cast<int>(height), R, lambda, CLR_STEP };
+	aperture<NUM_COLORS> ap{ data, static_cast<int>(width), static_cast<int>(height), R, lambda, CLR_STEP, unfocus_factor };
 
 	std::array<std::tuple<float, float, float>, NUM_COLORS> wavelenghts_as_rgb;
 
