@@ -10,6 +10,8 @@
 template <size_t N>
 struct aperture
 {
+	static constexpr float MIRROR_TO_IMAGE_RATIO = 64.0;
+
 	using pixel = std::array<float, N>;
 
 	// i = y * Width + x
@@ -24,6 +26,9 @@ struct aperture
 	float total_light_per_pixel;
 
 	float unfocus_factor;
+
+	float cx_cax_delta{};
+	float cy_cay_delta{};
 
 
 	// R is the radius of the 'lense', with the centre at (Width/2.0 - 0.5, Height/2.0 - 0.5, 0), 
@@ -43,8 +48,13 @@ struct aperture
 		// 0.5 factor is subtracted, as the centre is supposedly in between the middle two pixels, 
 		// so for more accurate calculations (and to enable symmetry-based optimisations), we
 		// subtract that 
-		float cx = width / 2.0f - 0.5f;
-		float cy = height / 2.0f - 0.5f;
+		float cax = (width / 2.0f - 0.5f) ;
+		float cay = (height / 2.0f - 0.5f);
+		float cx = cax * MIRROR_TO_IMAGE_RATIO;
+		float cy = cay * MIRROR_TO_IMAGE_RATIO;
+
+		cx_cax_delta = cx - cax;
+		cy_cay_delta = cy - cay;
 
 		// Loop through the images pixels to reset color.
 		for (int y = 0; y < height; y++)
@@ -61,7 +71,8 @@ struct aperture
 				float v = (r + g + b) / 3.0f / 255.0f;
 
 				intensity_mask[dst_offs] = v > 0.5f ? 1.0 : 0.0;
-				z_sqr_values[dst_offs] = R * R - std::powf(x - cx, 2.0) - std::powf(y - cy, 2.0);
+				z_sqr_values[dst_offs] = R * R * MIRROR_TO_IMAGE_RATIO * MIRROR_TO_IMAGE_RATIO
+					- std::powf(x * MIRROR_TO_IMAGE_RATIO - cx, 2.0) - std::powf(y * MIRROR_TO_IMAGE_RATIO - cy, 2.0);
 				if (std::abs(unfocus_factor) > 0.0001)
 				{
 					float z = std::sqrt(z_sqr_values[dst_offs]) + unfocus_factor;
@@ -76,6 +87,8 @@ struct aperture
 				total_light_per_pixel += intensity_mask[dst_offs];
 			}
 		}
+
+		//total_light_per_pixel /= std::pow(MIRROR_TO_IMAGE_RATIO, 4.0);
 
 		for (int i = 0; i < N; i++)
 		{
@@ -124,7 +137,8 @@ struct aperture
 				assert(z_sqr_values[offs_my] == z_sqr);
 				assert(z_sqr_values[offs_mx_my] == z_sqr);
 
-				float l_sqr = std::powf(ax - x, 2.0) + std::powf(ay - y, 2.0) + z_sqr;
+				float l_sqr = std::powf(ax * MIRROR_TO_IMAGE_RATIO - x - cx_cax_delta, 2.0) 
+					+ std::powf(ay * MIRROR_TO_IMAGE_RATIO - y - cy_cay_delta, 2.0) + z_sqr;
 				float l = std::sqrtf(l_sqr);
 				// Note: generally speaking/ the factor "1.0 / L^2" should be applied to the amplitude of the 
 				// wave at distance L from the light point source, this way we can compute physically-correct 

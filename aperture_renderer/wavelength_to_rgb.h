@@ -9,6 +9,9 @@ std::tuple<float, float, float> wavelength_to_rgb(float wavelength, float range_
 	double gamma = 0.80;
 	double red, green, blue;
 
+	if (range_low == range_high)
+		return { 1.0f,  1.0f, 1.0f };
+
 	// original formula got a bit of a over-stretch into red, '1.3' fixes it a bit
 	wavelength = (wavelength - range_low) / (range_high - range_low) / 1.3f; 
 

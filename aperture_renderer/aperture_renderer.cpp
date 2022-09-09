@@ -15,10 +15,10 @@
 #include "wavelength_to_rgb.h"
 
 
-constexpr int NUM_COLORS = 16;
-constexpr float CLR_STEP = 1.04427378242741;
+constexpr int NUM_COLORS = 1; // 16
+constexpr float CLR_STEP = 1.41; //  1.04427378242741;
 constexpr float DEFAULT_R = 1000.0;
-constexpr float DEFAULT_LAMBDA = 0.75; // wavelength! not a functional prog lambda
+constexpr float DEFAULT_LAMBDA = 1; //  0.75; // wavelength! not a functional prog lambda
 
 constexpr float BRIGHT_RATIO = 90000.0; // basically defines how much "light" we want to see in the final render
 
@@ -152,7 +152,28 @@ int main(int argc, char* argv[])
 	std::cout << std::endl;
 	std::cout << "run duration: " << std::chrono::system_clock::to_time_t(end) - std::chrono::system_clock::to_time_t(start) << " seconds" << std::endl;
 
-	float max{ 128.0f * ap.total_light_per_pixel };
+	float max{ 128.0f * ap.total_light_per_pixel * 200.0f };
+
+	max = 0;
+	for (size_t y = 0; y < height; ++y)
+	{
+		for (size_t x = 0; x < width; x++)
+		{
+			size_t i_offs = y * width + x;
+			size_t o_offs = 4 * i_offs;
+
+			float r = 0;
+			float g = 0;
+			float b = 0;
+
+			for (size_t i = 0; i < NUM_COLORS; ++i)
+			{
+				max = std::max(out_raw[i_offs][i], max);
+			}
+		}
+	}
+
+	max /= 256;
 
 	std::vector<unsigned char> out(width * height * 4);
 
