@@ -7,28 +7,32 @@
 
 #include "lambda_profile.h"
 
-template <size_t N>
+#include "kahan.h"
+
+template <size_t N, typename TFloat>
 struct aperture
 {
-	static constexpr float MIRROR_TO_IMAGE_RATIO = 64.0;
+	static constexpr TFloat MIRROR_TO_IMAGE_RATIO = 1000.0;
+	static constexpr TFloat TWO = 2.0;
 
-	using pixel = std::array<float, N>;
+	using pixel = std::array<TFloat, N>;
+	using pixel_acc = std::array<kahan::acc<TFloat>, N>;
 
 	// i = y * Width + x
-	std::vector<float> intensity_mask;
-	std::vector<float> z_sqr_values; // z^2-coordinates of the light emiting plane
+	std::vector<TFloat> intensity_mask;
+	std::vector<TFloat> z_sqr_values; // z^2-coordinates of the light emiting plane
 
-	std::array<lambda_profile, N> lambda_profiles;
+	std::array<lambda_profile<TFloat>, N> lambda_profiles;
 
 	int width;
 	int height;
 
-	float total_light_per_pixel;
+	TFloat total_light_per_pixel;
 
-	float unfocus_factor;
+	TFloat unfocus_factor;
 
-	float cx_cax_delta{};
-	float cy_cay_delta{};
+	TFloat cx_cax_delta{};
+	TFloat cy_cay_delta{};
 
 
 	// R is the radius of the 'lense', with the centre at (Width/2.0 - 0.5, Height/2.0 - 0.5, 0), 
@@ -36,7 +40,7 @@ struct aperture
 	// The screen is the plane with z==0. 
 
 	aperture(std::vector<unsigned char> img,
-		int width, int height, float R, float lambda, float clr_step, float unfocus_factor)
+		int width, int height, TFloat R, float lambda, TFloat clr_step, TFloat unfocus_factor)
 		: width{ width }
 		, height{ height }
 		, total_light_per_pixel { 0.0 }
@@ -48,10 +52,10 @@ struct aperture
 		// 0.5 factor is subtracted, as the centre is supposedly in between the middle two pixels, 
 		// so for more accurate calculations (and to enable symmetry-based optimisations), we
 		// subtract that 
-		float cax = (width / 2.0f - 0.5f) ;
-		float cay = (height / 2.0f - 0.5f);
-		float cx = cax * MIRROR_TO_IMAGE_RATIO;
-		float cy = cay * MIRROR_TO_IMAGE_RATIO;
+		TFloat cax = (width / TWO - 0.5f) ;
+		TFloat cay = (height / TWO - 0.5f);
+		TFloat cx = cax * MIRROR_TO_IMAGE_RATIO;
+		TFloat cy = cay * MIRROR_TO_IMAGE_RATIO;
 
 		cx_cax_delta = cx - cax;
 		cy_cay_delta = cy - cay;
@@ -64,18 +68,21 @@ struct aperture
 				auto img_offs = 4 * (y * width + x);
 				auto dst_offs = y * width + x;
 
-				float r = img[img_offs];
-				float g = img[img_offs + 1];
-				float b = img[img_offs + 2];
+				TFloat r = img[img_offs];
+				TFloat g = img[img_offs + 1];
+				TFloat b = img[img_offs + 2];
 
-				float v = (r + g + b) / 3.0f / 255.0f;
+				TFloat v = (r + g + b) / 3.0f / 255.0f;
 
 				intensity_mask[dst_offs] = v > 0.5f ? 1.0 : 0.0;
-				z_sqr_values[dst_offs] = R * R * MIRROR_TO_IMAGE_RATIO * MIRROR_TO_IMAGE_RATIO
-					- std::powf(x * MIRROR_TO_IMAGE_RATIO - cx, 2.0) - std::powf(y * MIRROR_TO_IMAGE_RATIO - cy, 2.0);
+				z_sqr_values[dst_offs] = 
+					R * R * MIRROR_TO_IMAGE_RATIO * MIRROR_TO_IMAGE_RATIO
+					- std::pow(x * MIRROR_TO_IMAGE_RATIO - cx, TWO)
+					- std::pow(y * MIRROR_TO_IMAGE_RATIO - cy, TWO);
+
 				if (std::abs(unfocus_factor) > 0.0001)
 				{
-					float z = std::sqrt(z_sqr_values[dst_offs]) + unfocus_factor;
+					TFloat z = std::sqrt(z_sqr_values[dst_offs]) + unfocus_factor;
 					z_sqr_values[dst_offs] = z * z;
 				}
 
@@ -93,23 +100,23 @@ struct aperture
 		for (int i = 0; i < N; i++)
 		{
 			float wl = std::powf(clr_step, static_cast<int>(N) / 2 - i) * lambda;
-			lambda_profiles[i] = lambda_profile{ wl };
+			lambda_profiles[i] = lambda_profile<TFloat>{ wl };
 		}
 	}
 
 	void diff_value(int x, int y, pixel& out, pixel& out_mx, pixel& out_my, pixel& out_mx_my) noexcept
 	{
-		pixel accum_a{ 0 };
-		pixel accum_b{ 0 };
+		pixel_acc accum_a{ 0 };
+		pixel_acc accum_b{ 0 };
 
-		pixel accum_a_mx{ 0 };
-		pixel accum_b_mx{ 0 };
+		pixel_acc accum_a_mx{ 0 };
+		pixel_acc accum_b_mx{ 0 };
 
-		pixel accum_a_my{ 0 };
-		pixel accum_b_my{ 0 };
+		pixel_acc accum_a_my{ 0 };
+		pixel_acc accum_b_my{ 0 };
 
-		pixel accum_a_mx_my{ 0 };
-		pixel accum_b_mx_my{ 0 };
+		pixel_acc accum_a_mx_my{ 0 };
+		pixel_acc accum_b_mx_my{ 0 };
 
 		int mx = width - 1 - x;
 		int my = height - 1 - y;
@@ -123,23 +130,27 @@ struct aperture
 				int offs_my = (height - ay - 1) * width + ax;
 				int offs_mx_my = (height - ay - 1) * width + (width - ax - 1);
 
-				float intensity = intensity_mask[offs];
-				float intensity_mx = intensity_mask[offs_mx];
-				float intensity_my = intensity_mask[offs_my];
-				float intensity_mx_my = intensity_mask[offs_mx_my];
+				TFloat intensity = intensity_mask[offs];
+				TFloat intensity_mx = intensity_mask[offs_mx];
+				TFloat intensity_my = intensity_mask[offs_my];
+				TFloat intensity_mx_my = intensity_mask[offs_mx_my];
 
 				if (intensity == 0 && intensity_mx == 0 && intensity_my == 0 && intensity_mx_my == 0)
 					continue;
 
-				float z_sqr = z_sqr_values[offs];
+				TFloat z_sqr = z_sqr_values[offs];
 
 				assert(z_sqr_values[offs_mx] == z_sqr);
 				assert(z_sqr_values[offs_my] == z_sqr);
 				assert(z_sqr_values[offs_mx_my] == z_sqr);
 
-				float l_sqr = std::powf(ax * MIRROR_TO_IMAGE_RATIO - x - cx_cax_delta, 2.0) 
-					+ std::powf(ay * MIRROR_TO_IMAGE_RATIO - y - cy_cay_delta, 2.0) + z_sqr;
-				float l = std::sqrtf(l_sqr);
+				TFloat l_sqr = 
+					std::pow(ax * MIRROR_TO_IMAGE_RATIO - x - cx_cax_delta, TWO) +
+					std::pow(ay * MIRROR_TO_IMAGE_RATIO - y - cy_cay_delta, TWO) +
+					z_sqr;
+
+				TFloat l = std::sqrt(l_sqr);
+
 				// Note: generally speaking/ the factor "1.0 / L^2" should be applied to the amplitude of the 
 				// wave at distance L from the light point source, this way we can compute physically-correct 
 				// distribution of the amplitudes. 
@@ -149,13 +160,13 @@ struct aperture
 				// is mostly negledgible. Furthermore, the longer the focus distance the more negledgible it becomes, so we 
 				// define it as a const simply. 
 
-				constexpr float inv_l_sqr = 1.0; // 1.0 / l_sqr; // this factor has almost zero impact on the performance, but kind of brings simulation to the 'exact match' 
+				constexpr TFloat inv_l_sqr = 1.0; // 1.0 / l_sqr; // this factor has almost zero impact on the performance, but kind of brings simulation to the 'exact match' 
 
 				for (int i = 0; i < N; ++i)
 				{
-					float d_tv = l * lambda_profiles[i].inverse_velocity;
-					float c = inv_l_sqr * std::cosf(d_tv);
-					float s = inv_l_sqr * std::sinf(d_tv);
+					TFloat d_tv = l * lambda_profiles[i].inverse_velocity;
+					TFloat c = inv_l_sqr * std::cos(d_tv);
+					TFloat s = inv_l_sqr * std::sin(d_tv);
 
 					accum_a[i] += c * intensity;
 					accum_b[i] += s * intensity;
@@ -171,10 +182,12 @@ struct aperture
 
 		for (int i = 0; i < N; ++i)
 		{
-			out[i] = M_PI * (std::powf(accum_a[i], 2.0) + std::powf(accum_b[i], 2.0));
-			out_mx[i] = M_PI * (std::powf(accum_a_mx[i], 2.0) + std::powf(accum_b_mx[i], 2.0));
-			out_my[i] = M_PI * (std::powf(accum_a_my[i], 2.0) + std::powf(accum_b_my[i], 2.0));
-			out_mx_my[i] = M_PI * (std::powf(accum_a_mx_my[i], 2.0) + std::powf(accum_b_mx_my[i], 2.0));
+			static constexpr TFloat PI = static_cast<TFloat>(M_PI);
+
+			out[i] = PI * (std::pow(accum_a[i], TWO) + std::pow(accum_b[i], TWO));
+			out_mx[i] = PI * (std::pow(accum_a_mx[i], TWO) + std::pow(accum_b_mx[i], TWO));
+			out_my[i] = PI * (std::pow(accum_a_my[i], TWO) + std::pow(accum_b_my[i], TWO));
+			out_mx_my[i] = PI * (std::pow(accum_a_mx_my[i], TWO) + std::pow(accum_b_mx_my[i], TWO));
 		}
 	}
 };
