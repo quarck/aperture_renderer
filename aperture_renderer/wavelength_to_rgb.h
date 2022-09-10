@@ -6,83 +6,86 @@
 
 std::tuple<float, float, float> wavelength_to_rgb(float wavelength, float range_low, float range_high)
 {
-	double gamma = 0.80;
-	double red, green, blue;
+	float gamma = .8;
+	float red, green, blue;
+
+	if (range_low == range_high)
+		return { 1.0f,  1.0f, 1.0f };
 
 	// original formula got a bit of a over-stretch into red, '1.3' fixes it a bit
 	wavelength = (wavelength - range_low) / (range_high - range_low) / 1.3f; 
 
-	if ((wavelength >= 0.0) && (wavelength < 0.15))
+	if ((wavelength >= 0.0f) && (wavelength < 0.15f))
 	{
-		red = -(wavelength - 0.15) / (0.15 - 0.0);
-		green = 0.0;
-		blue = 1.0;
+		red = -(wavelength - 0.15f) / (0.15f - 0.0f);
+		green = 0.0f;
+		blue = 1.0f;
 	}
-	else if ((wavelength >= 0.15) && (wavelength < 0.275))
+	else if ((wavelength >= 0.15f) && (wavelength < 0.275f))
 	{
-		red = 0.0;
-		green = (wavelength - 0.15) / (0.275 - 0.15);
-		blue = 1.0;
+		red = 0.0f;
+		green = (wavelength - 0.15f) / (0.275f - 0.15f);
+		blue = 1.0f;
 	}
-	else if ((wavelength >= 0.275) && (wavelength < 0.325))
+	else if ((wavelength >= 0.275f) && (wavelength < 0.325f))
 	{
-		red = 0.0;
-		green = 1.0;
-		blue = -(wavelength - 0.325) / (0.325 - 0.275);
+		red = 0.0f;
+		green = 1.0f;
+		blue = -(wavelength - 0.325f) / (0.325f - 0.275f);
 	}
-	else if ((wavelength >= 0.325) && (wavelength < 0.5))
+	else if ((wavelength >= 0.325f) && (wavelength < 0.5f))
 	{
-		red = (wavelength - 0.325) / (0.5 - 0.325);
-		green = 1.0;
-		blue = 0.0;
+		red = (wavelength - 0.325f) / (0.5f - 0.325f);
+		green = 1.0f;
+		blue = 0.0f;
 	}
-	else if ((wavelength >= 0.5) && (wavelength < 0.6625))
+	else if ((wavelength >= 0.5f) && (wavelength < 0.6625f))
 	{
-		red = 1.0;
-		green = -(wavelength - 0.6625) / (0.6625 - 0.5);
-		blue = 0.0;
+		red = 1.0f;
+		green = -(wavelength - 0.6625f) / (0.6625f - 0.5f);
+		blue = 0.0f;
 	}
-	else if ((wavelength >= 0.6625) && (wavelength <= 1.0))
+	else if ((wavelength >= 0.6625f) && (wavelength <= 1.0f))
 	{
-		red = 1.0;
-		green = 0.0;
-		blue = 0.0;
-	}
-	else
-	{
-		red = 0.0;
-		green = 0.0;
-		blue = 0.0;
-	}
-
-	double factor = 1.0;
-
-	if ((wavelength >= 0.0) && (wavelength < 0.1))
-	{
-		factor = 0.3 + 0.7 * wavelength / (0.1 - 0.0);
-	}
-	else if ((wavelength >= 0.1) && (wavelength < 0.7))
-	{
-		factor = 1.0;
-	}
-	else if ((wavelength >= 0.7) && (wavelength <= 1.0))
-	{
-		factor = 0.3 + 0.7 * (1 / 1.3 - wavelength) / (1 / 1.3 - .7);
+		red = 1.0f;
+		green = 0.0f;
+		blue = 0.0f;
 	}
 	else
 	{
-		factor = 0.0;
+		red = 0.0f;
+		green = 0.0f;
+		blue = 0.0f;
+	}
+
+	float factor = 1.0f;
+
+	if ((wavelength >= 0.0f) && (wavelength < 0.1f))
+	{
+		factor = 0.3f + 0.7f * wavelength / (0.1f - 0.0f);
+	}
+	else if ((wavelength >= 0.1f) && (wavelength < 0.7f))
+	{
+		factor = 1.0f;
+	}
+	else if ((wavelength >= 0.7f) && (wavelength <= 1.0f))
+	{
+		factor = 0.3f + 0.7f * (1.f / 1.3f - wavelength) / (1.f / 1.3f - .7f);
+	}
+	else
+	{
+		factor = 0.0f;
 	}
 
 
-	if (red != 0.0)
+	if (red != 0.0f)
 		red = std::powf(red * factor, gamma);
 
-	if (green != 0.0)
+	if (green != 0.0f)
 		green = std::powf(green * factor, gamma);
 
-	if (blue != 0.0)
+	if (blue != 0.0f)
 		blue = std::powf(blue * factor, gamma);
 
-	return { (float)red, (float)green, (float)blue };
+	return { red, green, blue };
 }

@@ -41,5 +41,8 @@
     <ClInclude Include="aperture.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="kahan.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
