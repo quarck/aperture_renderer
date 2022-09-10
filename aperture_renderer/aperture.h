@@ -1,3 +1,53 @@
+/*
+ * The formula used is: 
+ *
+ *	\omega = 2\pi f
+ *
+ *	\Delta t_i = \frac{l_i}{v}
+ *
+ *	a = \sum_i{\frac{cos(\omega \Delta t_i )}{l_i^2}}
+ *
+ *	b = \sum_i{\frac{sin(\omega \Delta t_i )}{l_i^2}}
+ *
+ *	E = \pi (a^2 + b^2)
+ * 
+ * Or, in a more C++-ish style: 
+ * 
+ *	omega = 2*pi*f;
+ *	d_t = l_i / v;
+ *	a = sum(cos(omega * d_t) / l_i^2);
+ *	b = sum(sin(omega * d_t) / l_i^2);
+ *	E = pi * (a^2 + b^2);
+ * 
+ * Also lambda, wavelength is:
+ * 
+ *		lambda = v / f;
+ * 	
+ * thus:
+ *  
+ *		f = v / lambda;
+ * 	
+ * and then:
+ * 
+ *		omega = 2 * pi * v / lambda;
+ * 
+ * And then:
+ * 
+ * 		omega * d_t = 2 * pi * v / lambda  * l_i / v;
+ * 	
+ * 		omega * d_t = 2 * pi * l_i / lambda;
+ * 	
+ * Let's define '2 * pi / lambda' as 'two_pi_inverse_lambda', then: 
+ * 	
+ * 		a = sum(cos(two_pi_inverse_lambda * l_i) / l_i^2);
+ * 		b = sum(sin(two_pi_inverse_lambda * l_i) / l_i^2);
+ * 		E = pi * (a^2 + b^2);
+ * 
+ * Also we can claim, that most values of l_i are nearly perfectly equal, thus we can drop that factor to simplify calculation
+ * 
+ * 
+*/
+
 #pragma once
 #include <vector>
 #include <array>
@@ -12,7 +62,6 @@
 template <size_t N, typename TFloat>
 struct aperture
 {
-	static constexpr TFloat MIRROR_TO_IMAGE_RATIO = 1000.0;
 	static constexpr TFloat TWO = 2.0;
 
 	using pixel = std::array<TFloat, N>;
@@ -31,16 +80,12 @@ struct aperture
 
 	TFloat unfocus_factor;
 
-	TFloat cx_cax_delta{};
-	TFloat cy_cay_delta{};
-
-
 	// R is the radius of the 'lense', with the centre at (Width/2.0 - 0.5, Height/2.0 - 0.5, 0), 
 	// it affects the curvature of the light wavefront. 
 	// The screen is the plane with z==0. 
 
 	aperture(std::vector<unsigned char> img,
-		int width, int height, TFloat R, float lambda, TFloat clr_step, TFloat unfocus_factor)
+		int width, int height, TFloat R, float lambda, float clr_step, TFloat unfocus_factor)
 		: width{ width }
 		, height{ height }
 		, total_light_per_pixel { 0.0 }
@@ -52,13 +97,8 @@ struct aperture
 		// 0.5 factor is subtracted, as the centre is supposedly in between the middle two pixels, 
 		// so for more accurate calculations (and to enable symmetry-based optimisations), we
 		// subtract that 
-		TFloat cax = (width / TWO - 0.5f) ;
-		TFloat cay = (height / TWO - 0.5f);
-		TFloat cx = cax * MIRROR_TO_IMAGE_RATIO;
-		TFloat cy = cay * MIRROR_TO_IMAGE_RATIO;
-
-		cx_cax_delta = cx - cax;
-		cy_cay_delta = cy - cay;
+		TFloat cx = width / TWO - 0.5f;
+		TFloat cy = height / TWO - 0.5f;
 
 		// Loop through the images pixels to reset color.
 		for (int y = 0; y < height; y++)
@@ -76,9 +116,9 @@ struct aperture
 
 				intensity_mask[dst_offs] = v > 0.5f ? 1.0 : 0.0;
 				z_sqr_values[dst_offs] = 
-					R * R * MIRROR_TO_IMAGE_RATIO * MIRROR_TO_IMAGE_RATIO
-					- std::pow(x * MIRROR_TO_IMAGE_RATIO - cx, TWO)
-					- std::pow(y * MIRROR_TO_IMAGE_RATIO - cy, TWO);
+					R * R 
+					- std::pow(x - cx, TWO)
+					- std::pow(y - cy, TWO);
 
 				if (std::abs(unfocus_factor) > 0.0001)
 				{
@@ -92,14 +132,13 @@ struct aperture
 				}
 
 				total_light_per_pixel += intensity_mask[dst_offs];
+				intensity_mask[dst_offs] *= R * R;
 			}
 		}
 
-		//total_light_per_pixel /= std::pow(MIRROR_TO_IMAGE_RATIO, 4.0);
-
 		for (int i = 0; i < N; i++)
 		{
-			float wl = std::powf(clr_step, static_cast<int>(N) / 2 - i) * lambda;
+			float wl = std::powf(clr_step, static_cast<int>(N) / 2 - static_cast<float>(i)) * lambda;
 			lambda_profiles[i] = lambda_profile<TFloat>{ wl };
 		}
 	}
@@ -144,11 +183,7 @@ struct aperture
 				assert(z_sqr_values[offs_my] == z_sqr);
 				assert(z_sqr_values[offs_mx_my] == z_sqr);
 
-				TFloat l_sqr = 
-					std::pow(ax * MIRROR_TO_IMAGE_RATIO - x - cx_cax_delta, TWO) +
-					std::pow(ay * MIRROR_TO_IMAGE_RATIO - y - cy_cay_delta, TWO) +
-					z_sqr;
-
+				TFloat l_sqr = std::pow(ax - x, TWO) + std::pow(ay - y, TWO) + z_sqr;
 				TFloat l = std::sqrt(l_sqr);
 
 				// Note: generally speaking/ the factor "1.0 / L^2" should be applied to the amplitude of the 
@@ -160,11 +195,11 @@ struct aperture
 				// is mostly negledgible. Furthermore, the longer the focus distance the more negledgible it becomes, so we 
 				// define it as a const simply. 
 
-				constexpr TFloat inv_l_sqr = 1.0; // 1.0 / l_sqr; // this factor has almost zero impact on the performance, but kind of brings simulation to the 'exact match' 
+				const TFloat inv_l_sqr = 1.0 / l_sqr; // this factor has almost zero impact on the performance, but kind of brings simulation to the 'exact match' 
 
 				for (int i = 0; i < N; ++i)
 				{
-					TFloat d_tv = l * lambda_profiles[i].inverse_velocity;
+					TFloat d_tv = l * lambda_profiles[i].two_pi_inverse_lambda;
 					TFloat c = inv_l_sqr * std::cos(d_tv);
 					TFloat s = inv_l_sqr * std::sin(d_tv);
 
@@ -184,7 +219,7 @@ struct aperture
 		{
 			static constexpr TFloat PI = static_cast<TFloat>(M_PI);
 
-			out[i] = PI * (std::pow(accum_a[i], TWO) + std::pow(accum_b[i], TWO));
+			out[i] = PI * (std::pow(accum_a[i], TWO) + std::pow(accum_b[i], TWO)) ;
 			out_mx[i] = PI * (std::pow(accum_a_mx[i], TWO) + std::pow(accum_b_mx[i], TWO));
 			out_my[i] = PI * (std::pow(accum_a_my[i], TWO) + std::pow(accum_b_my[i], TWO));
 			out_mx_my[i] = PI * (std::pow(accum_a_mx_my[i], TWO) + std::pow(accum_b_mx_my[i], TWO));

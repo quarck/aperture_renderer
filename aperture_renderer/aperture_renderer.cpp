@@ -15,12 +15,10 @@
 #include "wavelength_to_rgb.h"
 
 
-constexpr int NUM_COLORS = 1; // 16
-constexpr float CLR_STEP = 1.41; //  1.04427378242741;
-constexpr float DEFAULT_R = 1000.0;
-constexpr float DEFAULT_LAMBDA = 0.75; // wavelength! not a functional prog lambda
-
-constexpr float BRIGHT_RATIO = 90000.0; // basically defines how much "light" we want to see in the final render
+constexpr int NUM_COLORS = 16; // 16
+constexpr float CLR_STEP = 1.04427378242741f;
+constexpr float DEFAULT_R = 1000.0f;
+constexpr float DEFAULT_LAMBDA = .75f; // wavelength! not a functional prog lambda
 
 using apr = aperture<NUM_COLORS, double>;
 
@@ -75,9 +73,9 @@ int main(int argc, char* argv[])
 	std::cout << "Input: " << input << std::endl;
 	std::cout << "Output: " << output << std::endl;
 
-	float R = argc >= 4 ? std::atof(argv[3]) : DEFAULT_R;
-	float lambda = argc >= 5 ? std::atof(argv[4]) : DEFAULT_LAMBDA;
-	float unfocus_factor = argc >= 6 ? std::atof(argv[5]) : 0.0;
+	float R = argc >= 4 ? static_cast<float>(std::atof(argv[3])) : DEFAULT_R;
+	float lambda = argc >= 5 ? static_cast<float>(std::atof(argv[4])) : DEFAULT_LAMBDA;
+	float unfocus_factor = argc >= 6 ? static_cast<float>(std::atof(argv[5])) : 0.0f;
 
 	std::vector<unsigned char> data;
 	unsigned width;
@@ -139,9 +137,9 @@ int main(int argc, char* argv[])
 	_grid.GridRun(
 		[&](int thread_idx, int num_threads)
 		{
-			for (int y = thread_idx; y < height/2; y += num_threads)
+			for (int y = thread_idx; y < static_cast<int>(height/2); y += num_threads)
 			{
-				for (int x = 0; x < width/2; x++)
+				for (int x = 0; x < static_cast<int>(width/2); x++)
 				{
 					ap.diff_value(x, y, out_raw[y * width + x], 
 						out_raw[y * width + width - x - 1], 
@@ -161,7 +159,7 @@ int main(int argc, char* argv[])
 	std::cout << std::endl;
 	std::cout << "run duration: " << std::chrono::system_clock::to_time_t(end) - std::chrono::system_clock::to_time_t(start) << " seconds" << std::endl;
 
-	float max = 64.0f * ap.total_light_per_pixel;
+	float max = static_cast<float>(64.0f * ap.total_light_per_pixel);
 
 	std::vector<unsigned char> out(width * height * 4);
 
@@ -178,7 +176,7 @@ int main(int argc, char* argv[])
 
 			for (size_t i = 0; i < NUM_COLORS; ++i)
 			{
-				float v = out_raw[i_offs][i] / max; // value for the given WL
+				float v = static_cast<float>(out_raw[i_offs][i] / max); // value for the given WL
 				auto rgb = wavelenghts_as_rgb[i]; // RGB components for the given WL
 
 				r += v * std::get<0>(rgb);
