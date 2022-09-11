@@ -14,5 +14,5 @@ foreach ($ap in $apertures)
 
 	echo $ap.Name $out_file	
 	
-	& $exe bench\$ap bench\$out_file 1000 0.75
+	& $exe bench\$ap bench\$out_file 1000 0.75 1.0
 }
