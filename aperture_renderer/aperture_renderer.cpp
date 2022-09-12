@@ -20,7 +20,7 @@ constexpr float CLR_STEP = 1.04427378242741f;
 constexpr float DEFAULT_R = 1000.0f;
 constexpr float DEFAULT_LAMBDA = .75f; // wavelength! not a functional prog lambda
 
-using apr = aperture<NUM_COLORS, double>;
+using apr = aperture_double<NUM_COLORS>;
 
 void report_progress(int value, int total)
 {
@@ -105,7 +105,7 @@ int main(int argc, char* argv[])
 
 	std::array<std::tuple<float, float, float>, NUM_COLORS> wavelenghts_as_rgb;
 
-	std::vector<apr::pixel> out_raw(width* height);
+	apr::raw out_raw(width* height);
 
 	float wl_max = std::numeric_limits<float>::min();
 	float wl_min = std::numeric_limits<float>::max();

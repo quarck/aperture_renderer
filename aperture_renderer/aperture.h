@@ -59,13 +59,16 @@
 
 #include "kahan.h"
 
-template <size_t N, typename TFloat>
+template <size_t N, typename TFloat, bool skip_r_square>
 struct aperture
 {
 	static constexpr TFloat TWO = 2.0;
 
 	using pixel = std::array<TFloat, N>;
 	using pixel_acc = std::array<kahan::acc<TFloat>, N>;
+
+	// output format
+	using raw = std::vector<pixel>;
 
 	// i = y * Width + x
 	std::vector<TFloat> intensity_mask;
@@ -75,6 +78,9 @@ struct aperture
 
 	int width;
 	int height;
+
+	int ap_skip_x{ 0 };
+	int ap_skip_y{ 0 };
 
 	TFloat total_light_per_pixel;
 
@@ -132,9 +138,48 @@ struct aperture
 				}
 
 				total_light_per_pixel += intensity_mask[dst_offs];
-				intensity_mask[dst_offs] *= R * R;
+
+				if constexpr (!skip_r_square)
+				{
+					intensity_mask[dst_offs] *= R * R;
+				}
 			}
 		}
+
+
+		for (int y = 0; y < height/2; y++)
+		{
+			bool all_zero = true;
+			for (int x = 0; x < width; x++)
+			{
+				if (intensity_mask[y * width + x] != 0.0) // exact! 
+				{
+					all_zero = false;
+					break;
+				}
+			}
+
+			if (!all_zero)
+				break;
+			ap_skip_y = y;
+		}
+
+		for (int x = 0; x < width/2; x++)
+		{
+			bool all_zero = true;
+			for (int y = 0; y < height; y++)
+			{
+				if (intensity_mask[y * width + x] != 0.0) // exact! 
+				{
+					all_zero = false;
+					break;
+				}
+			}
+			if (!all_zero)
+				break;
+			ap_skip_x = x;
+		}
+
 
 		for (int i = 0; i < N; i++)
 		{
@@ -160,9 +205,9 @@ struct aperture
 		int mx = width - 1 - x;
 		int my = height - 1 - y;
 
-		for (int ay = 0; ay < height; ++ay)
+		for (int ay = ap_skip_y; ay < height - ap_skip_y; ++ay)
 		{
-			for (int ax = 0; ax < width; ++ax)
+			for (int ax = ap_skip_x; ax < width - ap_skip_x; ++ax)
 			{
 				int offs = ay * width + ax;
 				int offs_mx = ay * width + (width - ax - 1);
@@ -195,7 +240,8 @@ struct aperture
 				// is mostly negledgible. Furthermore, the longer the focus distance the more negledgible it becomes, so we 
 				// define it as a const simply. 
 
-				const TFloat inv_l_sqr = 1.0 / l_sqr; // this factor has almost zero impact on the performance, but kind of brings simulation to the 'exact match' 
+				// this factor has almost zero impact on the performance, but kind of brings simulation to the 'exact match' 
+				const TFloat inv_l_sqr = skip_r_square ? 1.0 : (1.0 / l_sqr); 
 
 				for (int i = 0; i < N; ++i)
 				{
@@ -226,3 +272,15 @@ struct aperture
 		}
 	}
 };
+
+template <size_t N>
+using aperture_double = aperture<N, double, false>;
+
+template <size_t N>
+using aperture_double_no_rsqr = aperture<N, double, true>;
+
+template <size_t N>
+using aperture_float = aperture<N, float, false>;
+
+template <size_t N>
+using aperture_float_no_rsqr = aperture<N, float, true>;
