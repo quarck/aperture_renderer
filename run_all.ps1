@@ -17,8 +17,15 @@ foreach ($ap in $apertures)
     }
 		
 	Write-Host "Runniing $ap"
-		
-	& $exe sample_apertures\$ap $out_file $R $wv
+
+    if ($ap.Name.Contains('huge'))
+    {
+    	& $exe sample_apertures\$ap $out_file 2000 0.75
+    }
+    else
+    {        
+    	& $exe sample_apertures\$ap $out_file $R $wv
+    }
 		
 	Write-Host "Done $ap"
 }
