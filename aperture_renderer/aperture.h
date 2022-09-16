@@ -149,33 +149,26 @@ struct aperture
 
 		for (int y = 0; y < height/2; y++)
 		{
-			bool all_zero = true;
+			TFloat sum_all{ 0.0 };
 			for (int x = 0; x < width; x++)
 			{
-				if (intensity_mask[y * width + x] != 0.0) // exact! 
-				{
-					all_zero = false;
-					break;
-				}
+				sum_all += intensity_mask[y * width + x];
+				sum_all += intensity_mask[y * width + (width-x-1)];
 			}
-
-			if (!all_zero)
+			if (sum_all != 0.0)
 				break;
 			ap_skip_y = y;
 		}
 
 		for (int x = 0; x < width/2; x++)
 		{
-			bool all_zero = true;
+			TFloat sum_all{ 0.0 };
 			for (int y = 0; y < height; y++)
 			{
-				if (intensity_mask[y * width + x] != 0.0) // exact! 
-				{
-					all_zero = false;
-					break;
-				}
+				sum_all += intensity_mask[y * width + x];
+				sum_all += intensity_mask[(height-y-1) * width + x];
 			}
-			if (!all_zero)
+			if (sum_all != 0.0)
 				break;
 			ap_skip_x = x;
 		}

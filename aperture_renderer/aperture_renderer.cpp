@@ -15,8 +15,8 @@
 #include "wavelength_to_rgb.h"
 
 
-constexpr int NUM_COLORS = 16; // 16
-constexpr float CLR_STEP = 1.04427378242741f;
+constexpr int NUM_COLORS = 16; //  64
+constexpr float CLR_STEP = 1.04427378242741f;  // 1.010889286051699530632830539475;
 constexpr float DEFAULT_R = 1000.0f;
 constexpr float DEFAULT_LAMBDA = .75f; // wavelength! not a functional prog lambda
 
